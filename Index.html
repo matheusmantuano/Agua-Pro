@@ -14,7 +14,7 @@
 
 <style>
 body {
-  font-family: -apple-system;
+  font-family: -apple-system, Arial;
   background: #f2f2f7;
   padding: 20px;
 }
@@ -44,6 +44,10 @@ button {
   font-size: 16px;
 }
 
+#resultado {
+  margin-top: 15px;
+}
+
 canvas {
   margin-top: 20px;
 }
@@ -57,7 +61,7 @@ canvas {
 
   <textarea id="dados" placeholder="02/04: 1,9"></textarea>
 
-  <button onclick="calcular()">Calcular</button>
+  <button id="btnCalcular">Calcular</button>
 
   <div id="resultado"></div>
 
@@ -65,9 +69,11 @@ canvas {
 </div>
 
 <script>
-function extrairNumero(l) {
-  let m = l.match(/[\d,.]+$/);
-  return m ? parseFloat(m[0].replace(",", ".")) : NaN;
+// ===== FUNÇÕES =====
+
+function extrairNumero(linha) {
+  let match = linha.match(/[\d,.]+$/);
+  return match ? parseFloat(match[0].replace(",", ".")) : NaN;
 }
 
 function calcularConta(t) {
@@ -78,7 +84,7 @@ function calcularConta(t) {
 }
 
 function analisar(valores) {
-  let media = valores.reduce((a,b)=>a+b,0)/valores.length;
+  let media = valores.reduce((a,b)=>a+b,0) / valores.length;
 
   let desvio = Math.sqrt(
     valores.map(v => (v - media)**2).reduce((a,b)=>a+b,0) / valores.length
@@ -88,14 +94,17 @@ function analisar(valores) {
   if (media > 1.5) alerta += "🚨 Consumo alto<br>";
   if (desvio > 0.7) alerta += "⚠️ Consumo irregular<br>";
 
-  return {media, desvio, alerta};
+  return {media, alerta};
 }
+
+// ===== MAIN =====
 
 function calcular() {
   try {
-    let texto = document.getElementById("dados").value;
-    let linhas = texto.split("\n");
+    const textarea = document.getElementById("dados");
+    const resultado = document.getElementById("resultado");
 
+    const linhas = textarea.value.split("\n");
     let valores = [];
 
     linhas.forEach(l => {
@@ -104,7 +113,7 @@ function calcular() {
     });
 
     if (valores.length === 0) {
-      document.getElementById("resultado").innerHTML = "⚠️ Insira dados válidos";
+      resultado.innerHTML = "⚠️ Insira dados válidos";
       return;
     }
 
@@ -114,19 +123,17 @@ function calcular() {
     let proj = analise.media * 30;
     let conta = calcularConta(proj);
 
-    let economia1 = conta - calcularConta(proj * 0.9);
-    let economia2 = conta - calcularConta(proj * 0.8);
+    let economia10 = conta - calcularConta(proj * 0.9);
+    let economia20 = conta - calcularConta(proj * 0.8);
 
-    document.getElementById("resultado").innerHTML =
+    resultado.innerHTML =
       "<b>Consumo:</b> " + total.toFixed(1) + " m³<br>" +
       "<b>Média:</b> " + analise.media.toFixed(2) + "<br>" +
       "<b>Projeção:</b> " + proj.toFixed(1) + "<br>" +
       "<b>Conta:</b> R$ " + conta.toFixed(2) + "<br><br>" +
       analise.alerta +
-      "💡 -10%: R$ " + economia1.toFixed(2) + "<br>" +
-      "💡 -20%: R$ " + economia2.toFixed(2);
-
-    localStorage.setItem("historico", JSON.stringify(valores));
+      "💡 -10%: R$ " + economia10.toFixed(2) + "<br>" +
+      "💡 -20%: R$ " + economia20.toFixed(2);
 
     desenharGrafico(valores);
 
@@ -136,13 +143,19 @@ function calcular() {
   }
 }
 
+// ===== GRÁFICO =====
+
+let graficoAtual;
+
 function desenharGrafico(valores) {
   try {
-    if (window.graficoAtual) {
-      window.graficoAtual.destroy();
+    if (graficoAtual) {
+      graficoAtual.destroy();
     }
 
-    window.graficoAtual = new Chart(document.getElementById("grafico"), {
+    const ctx = document.getElementById("grafico");
+
+    graficoAtual = new Chart(ctx, {
       type: 'line',
       data: {
         labels: valores.map((_,i)=>"Dia "+(i+1)),
@@ -152,12 +165,18 @@ function desenharGrafico(valores) {
         }]
       }
     });
+
   } catch (e) {
     console.log("Erro gráfico:", e);
   }
 }
 
-// offline
+// ===== EVENTO BOTÃO (mais seguro que onclick) =====
+
+document.getElementById("btnCalcular").addEventListener("click", calcular);
+
+// ===== OFFLINE =====
+
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }

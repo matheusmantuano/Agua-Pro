@@ -15,7 +15,7 @@ body {
 .box {
   background: white;
   padding: 20px;
-  border-radius: 10px;
+  border-radius: 12px;
   max-width: 400px;
   margin: auto;
 }
@@ -29,6 +29,7 @@ textarea {
 button {
   width: 100%;
   padding: 10px;
+  margin-top: 5px;
   background: #007aff;
   color: white;
   border: none;
@@ -41,6 +42,13 @@ button {
   margin: 3px 0;
   border-radius: 6px;
 }
+
+.mes {
+  background: #eee;
+  padding: 8px;
+  margin-top: 6px;
+  border-radius: 8px;
+}
 </style>
 </head>
 
@@ -52,71 +60,155 @@ button {
   <textarea id="dados" placeholder="02/04: 1,9"></textarea>
 
   <button onclick="calcular()">Calcular</button>
+  <button onclick="salvar()">Salvar mês</button>
 
   <div id="resultado"></div>
 
+  <h3>📊 Consumo diário</h3>
   <div id="grafico"></div>
+
+  <h3>📈 Histórico</h3>
+  <div id="historico"></div>
 </div>
 
 <script>
 
-function extrairNumero(linha) {
-  let m = linha.match(/[\d,.]+$/);
-  return m ? parseFloat(m[0].replace(",", ".")) : NaN;
-}
-
-function calcularConta(t) {
-  if (t <= 10) return 80.84;
-  if (t <= 20) return 80.84 + (t - 10) * 12.8;
-  if (t <= 50) return 80.84 + (1012.8) + (t - 20)31.9;
-  return 80.84 + (1012.8) + (3031.9) + (t - 50)35.14;
-}
-
 function calcular() {
 
-  let texto = document.getElementById("dados").value;
-  let linhas = texto.split("\n");
+  var texto = document.getElementById("dados").value;
+  var linhas = texto.split("\n");
 
-  let valores = [];
+  var valores = [];
+  var total = 0;
 
-  linhas.forEach(l => {
-    let v = extrairNumero(l);
-    if (!isNaN(v)) valores.push(v);
-  });
+  for (var i = 0; i < linhas.length; i++) {
+
+    var linha = linhas[i].trim();
+
+    if (linha === "") continue;
+
+    var partes = linha.split(":");
+    var valor = partes[partes.length - 1];
+
+    valor = valor.replace(",", ".");
+    var numero = parseFloat(valor);
+
+    if (!isNaN(numero)) {
+      valores.push(numero);
+      total += numero;
+    }
+  }
 
   if (valores.length === 0) {
-    document.getElementById("resultado").innerHTML = "⚠️ Insira dados válidos";
+    document.getElementById("resultado").innerHTML = "⚠️ Sem dados válidos";
     return;
   }
 
-  let total = valores.reduce((a,b)=>a+b,0);
-  let media = total / valores.length;
+  var media = total / valores.length;
+  var proj = media * 30;
 
-  let proj = media * 30;
-  let conta = calcularConta(proj);
+  var conta;
+
+  if (proj <= 10) {
+    conta = 80.84;
+  } else if (proj <= 20) {
+    conta = 80.84 + (proj - 10) * 12.8;
+  } else if (proj <= 50) {
+    conta = 80.84 + (10 * 12.8) + (proj - 20) * 31.9;
+  } else {
+    conta = 80.84 + (10 * 12.8) + (30 * 31.9) + (proj - 50) * 35.14;
+  }
 
   document.getElementById("resultado").innerHTML =
-    "<b>Consumo:</b> " + total.toFixed(1) + " m³<br>" +
-    "<b>Média:</b> " + media.toFixed(2) + "<br>" +
-    "<b>Projeção:</b> " + proj.toFixed(1) + "<br>" +
-    "<b>Conta:</b> R$ " + conta.toFixed(2);
+    "Consumo: " + total.toFixed(1) + " m³<br>" +
+    "Média: " + media.toFixed(2) + "<br>" +
+    "Projeção: " + proj.toFixed(1) + "<br>" +
+    "<b>Conta: R$ " + conta.toFixed(2) + "</b>";
 
   desenharGrafico(valores);
+
+  localStorage.setItem("ultimo", JSON.stringify({
+    total: total,
+    conta: conta
+  }));
 }
 
 function desenharGrafico(valores) {
-  let div = document.getElementById("grafico");
+
+  var div = document.getElementById("grafico");
   div.innerHTML = "";
 
-  let max = Math.max(...valores);
+  var max = 0;
 
-  valores.forEach(v => {
-    let barra = document.createElement("div");
+  for (var i = 0; i < valores.length; i++) {
+    if (valores[i] > max) max = valores[i];
+  }
+
+  for (var i = 0; i < valores.length; i++) {
+    var barra = document.createElement("div");
     barra.className = "barra";
-    barra.style.width = (v/max100) + "%";
+    barra.style.width = (valores[i] / max * 100) + "%";
     div.appendChild(barra);
-  });
+  }
 }
+
+function salvar() {
+
+  var ultimo = localStorage.getItem("ultimo");
+
+  if (!ultimo) {
+    alert("Calcule primeiro");
+    return;
+  }
+
+  var dados = JSON.parse(ultimo);
+
+  var historico = localStorage.getItem("historico");
+
+  if (!historico) {
+    historico = [];
+  } else {
+    historico = JSON.parse(historico);
+  }
+
+  historico.push({
+    data: new Date().toLocaleDateString(),
+    total: dados.total,
+    conta: dados.conta
+  });
+
+  localStorage.setItem("historico", JSON.stringify(historico));
+
+  carregarHistorico();
+}
+
+function carregarHistorico() {
+
+  var historico = localStorage.getItem("historico");
+
+  if (!historico) return;
+
+  historico = JSON.parse(historico);
+
+  var div = document.getElementById("historico");
+  div.innerHTML = "";
+
+  for (var i = 0; i < historico.length; i++) {
+
+    var h = historico[i];
+
+    var el = document.createElement("div");
+    el.className = "mes";
+
+    el.innerHTML =
+      "<b>" + h.data + "</b><br>" +
+      h.total.toFixed(1) + " m³ - R$ " + h.conta.toFixed(2);
+
+    div.appendChild(el);
+  }
+}
+
+carregarHistorico();
 
 </script>
 

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Água Pro</title>
+
+<link rel="manifest" href="manifest.json">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {
+  font-family: -apple-system;
+  background: #f2f2f7;
+  padding: 20px;
+}
+
+.box {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  max-width: 500px;
+  margin: auto;
+}
+
+textarea {
+  width: 100%;
+  height: 100px;
+  margin-bottom: 10px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  background: #007aff;
+  color: white;
+  border: none;
+  border-radius: 10px;
+}
+
+canvas {
+  margin-top: 20px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="box">
+  <h2>💧 Água Pro</h2>
+
+  <textarea id="dados" placeholder="02/04: 1,9"></textarea>
+
+  <button onclick="calcular()">Calcular</button>
+
+  <div id="resultado"></div>
+
+  <canvas id="grafico"></canvas>
+</div>
+
+<script>
+function extrairNumero(l) {
+  let m = l.match(/[\d,.]+$/);
+  return m ? parseFloat(m[0].replace(",", ".")) : NaN;
+}
+
+function calcularConta(t) {
+  if (t <= 10) return 80.84;
+  if (t <= 20) return 80.84 + (t - 10) * 12.8;
+  if (t <= 50) return 80.84 + (1012.8) + (t - 20)31.9;
+  return 80.84 + (1012.8) + (3031.9) + (t - 50)*35.14;
+}
+
+function calcular() {
+  let linhas = dados.value.split("\n");
+  let valores = [];
+
+  linhas.forEach(l => {
+    let v = extrairNumero(l);
+    if (!isNaN(v)) valores.push(v);
+  });
+
+  let total = valores.reduce((a,b)=>a+b,0);
+  let media = total / valores.length;
+  let proj = media * 30;
+
+  let conta = calcularConta(proj);
+
+  // ALERTA VAZAMENTO
+  let alerta = "";
+  if (media > 1.5) {
+    alerta = "🚨 Possível consumo elevado/vazamento";
+  }
+
+  resultado.innerHTML =
+    "Consumo: " + total.toFixed(1) + " m³<br>" +
+    "Média: " + media.toFixed(2) + "<br>" +
+    "Projeção: " + proj.toFixed(1) + "<br>" +
+    "<b>Conta: R$ " + conta.toFixed(2) + "</b><br>" +
+    alerta;
+
+  // SALVAR HISTÓRICO
+  localStorage.setItem("historico", JSON.stringify(valores));
+
+  desenharGrafico(valores);
+}
+
+function desenharGrafico(valores) {
+  new Chart(grafico, {
+    type: 'line',
+    data: {
+      labels: valores.map((_,i)=>"Dia "+(i+1)),
+      datasets: [{
+        label: 'Consumo',
+        data: valores
+      }]
+    }
+  });
+}
+
+// SERVICE WORKER
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+</script>
+
+</body>
+</html>

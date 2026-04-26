@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Água Pro+</title>
+<title>Água Pro</title>
 
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon.png">
 
 <style>
 body {
-  font-family: -apple-system;
+  font-family: -apple-system, Arial;
   background: #f2f2f7;
   padding: 20px;
 }
@@ -27,16 +27,23 @@ body {
 textarea {
   width: 100%;
   height: 100px;
+  margin-bottom: 10px;
+  font-size: 16px;
 }
 
 button {
   width: 100%;
-  padding: 12px;
-  margin-top: 6px;
+  padding: 14px;
   background: #007aff;
   color: white;
   border: none;
   border-radius: 10px;
+  margin-top: 5px;
+  font-size: 16px;
+}
+
+#resultado {
+  margin-top: 15px;
 }
 
 .barra {
@@ -53,14 +60,6 @@ button {
   border-radius: 8px;
 }
 
-.alerta {
-  color: red;
-}
-
-.ok {
-  color: green;
-}
-
 .small {
   font-size: 12px;
   color: gray;
@@ -71,26 +70,28 @@ button {
 <body>
 
 <div class="box">
-  <h2>💧 Água Pro+</h2>
+  <h2>💧 Água Pro</h2>
 
   <textarea id="dados" placeholder="02/04: 1,9"></textarea>
 
-  <button onclick="calcular()">Calcular</button>
-  <button onclick="salvarMes()">Salvar mês</button>
-  <button onclick="limparHistorico()">Limpar histórico</button>
+  <button id="btnCalcular">Calcular</button>
+  <button id="btnSalvar">Salvar mês</button>
 
   <div id="resultado"></div>
 
   <h3>📊 Consumo diário</h3>
   <div id="grafico"></div>
 
-  <h3>📈 Histórico mensal</h3>
+  <h3>📈 Histórico</h3>
   <div id="historico"></div>
 </div>
 
 <script>
-function extrairNumero(l) {
-  let m = l.match(/[\d,.]+$/);
+
+// ===== UTIL =====
+
+function extrairNumero(linha) {
+  let m = linha.match(/[\d,.]+$/);
   return m ? parseFloat(m[0].replace(",", ".")) : NaN;
 }
 
@@ -98,29 +99,68 @@ function calcularConta(t) {
   if (t <= 10) return 80.84;
   if (t <= 20) return 80.84 + (t - 10) * 12.8;
   if (t <= 50) return 80.84 + (1012.8) + (t - 20)31.9;
-  return 80.84 + (1012.8) + (3031.9) + (t - 50)35.14;
+  return 80.84 + (1012.8) + (3031.9) + (t - 50)*35.14;
 }
 
-function analisar(valores) {
-  let media = valores.reduce((a,b)=>a+b,0)/valores.length;
+// ===== CALCULAR =====
 
-  let max = Math.max(...valores);
-  let min = Math.min(...valores);
-  let variacao = max - min;
+function calcular() {
+  try {
+    const texto = document.getElementById("dados").value;
+    const linhas = texto.split("\n");
 
-  let tendencia = "";
-  if (valores[valores.length-1] > media) tendencia = "📈 Subindo";
-  else tendencia = "📉 Estável/queda";
+    let valores = [];
 
-  let alerta = "";
-  if (media > 1.5) alerta += "🚨 Consumo alto<br>";
-  if (variacao > 1.5) alerta += "⚠️ Oscilação alta<br>";
+    linhas.forEach(l => {
+      let v = extrairNumero(l);
+      if (!isNaN(v)) valores.push(v);
+    });
 
-  return {media, alerta, tendencia};
+    if (valores.length === 0) {
+      document.getElementById("resultado").innerHTML = "⚠️ Insira dados válidos";
+      return;
+    }
+
+    let total = valores.reduce((a,b)=>a+b,0);
+    let media = total / valores.length;
+
+    let max = Math.max(...valores);
+    let min = Math.min(...valores);
+
+    let alerta = "";
+    if (media > 1.5) alerta += "🚨 Consumo alto<br>";
+    if ((max - min) > 1.5) alerta += "⚠️ Oscilação alta<br>";
+
+    let proj = media * 30;
+    let conta = calcularConta(proj);
+
+    let economia10 = conta - calcularConta(proj * 0.9);
+    let economia20 = conta - calcularConta(proj * 0.8);
+
+    document.getElementById("resultado").innerHTML =
+      "<b>Consumo:</b> " + total.toFixed(1) + " m³<br>" +
+      "<b>Média:</b> " + media.toFixed(2) + "<br>" +
+      "<b>Projeção:</b> " + proj.toFixed(1) + "<br>" +
+      "<b>Conta:</b> R$ " + conta.toFixed(2) + "<br><br>" +
+      alerta +
+      "💡 -10%: R$ " + economia10.toFixed(2) + "<br>" +
+      "💡 -20%: R$ " + economia20.toFixed(2);
+
+    desenharGrafico(valores);
+
+    // salva atual
+    localStorage.setItem("atual", JSON.stringify({total, conta}));
+
+  } catch (e) {
+    document.getElementById("resultado").innerHTML = "❌ Erro";
+    console.log(e);
+  }
 }
+
+// ===== GRAFICO =====
 
 function desenharGrafico(valores) {
-  let container = document.getElementById("grafico");
+  const container = document.getElementById("grafico");
   container.innerHTML = "";
 
   let max = Math.max(...valores);
@@ -128,63 +168,26 @@ function desenharGrafico(valores) {
   valores.forEach(v => {
     let barra = document.createElement("div");
     barra.className = "barra";
-    barra.style.width = (v/max100) + "%";
+    barra.style.width = (v / max * 100) + "%";
     container.appendChild(barra);
   });
 }
 
-function calcular() {
-  let linhas = document.getElementById("dados").value.split("\n");
-
-  let valores = [];
-
-  linhas.forEach(l => {
-    let v = extrairNumero(l);
-    if (!isNaN(v)) valores.push(v);
-  });
-
-  if (valores.length === 0) {
-    resultado.innerHTML = "⚠️ Insira dados válidos";
-    return;
-  }
-
-  let total = valores.reduce((a,b)=>a+b,0);
-  let analise = analisar(valores);
-
-  let proj = analise.media * 30;
-  let conta = calcularConta(proj);
-
-  let economia10 = conta - calcularConta(proj0.9);
-  let economia20 = conta - calcularConta(proj0.8);
-
-  resultado.innerHTML =
-    "<b>Consumo:</b> " + total.toFixed(1) + " m³<br>" +
-    "<b>Média:</b> " + analise.media.toFixed(2) + "<br>" +
-    "<b>Tendência:</b> " + analise.tendencia + "<br>" +
-    "<b>Projeção:</b> " + proj.toFixed(1) + "<br>" +
-    "<b>Conta:</b> R$ " + conta.toFixed(2) + "<br><br>" +
-    "<span class='alerta'>" + analise.alerta + "</span>" +
-    "💡 -10%: R$ " + economia10.toFixed(2) + "<br>" +
-    "💡 -20%: R$ " + economia20.toFixed(2);
-
-  desenharGrafico(valores);
-
-  localStorage.setItem("atual", JSON.stringify({
-    total, conta, media: analise.media
-  }));
-}
+// ===== HISTORICO =====
 
 function salvarMes() {
   let atual = JSON.parse(localStorage.getItem("atual"));
-  if (!atual) return alert("Calcule primeiro");
+  if (!atual) {
+    alert("Calcule antes de salvar");
+    return;
+  }
 
   let historico = JSON.parse(localStorage.getItem("historico")) || [];
 
   historico.push({
     data: new Date().toLocaleDateString(),
     total: atual.total,
-    conta: atual.conta,
-    media: atual.media
+    conta: atual.conta
   });
 
   localStorage.setItem("historico", JSON.stringify(historico));
@@ -195,36 +198,29 @@ function salvarMes() {
 function carregarHistorico() {
   let historico = JSON.parse(localStorage.getItem("historico")) || [];
 
-  let div = document.getElementById("historico");
+  const div = document.getElementById("historico");
   div.innerHTML = "";
 
-  historico.forEach((h, i) => {
-    let prev = historico[i-1];
-
-    let tendencia = "";
-    if (prev) {
-      if (h.total > prev.total) tendencia = "📈 piorou";
-      else tendencia = "📉 melhorou";
-    }
-
+  historico.forEach(h => {
     let el = document.createElement("div");
     el.className = "mes";
 
     el.innerHTML =
       "<b>" + h.data + "</b><br>" +
-      h.total.toFixed(1) + " m³ - R$ " + h.conta.toFixed(2) +
-      "<div class='small'>" + tendencia + "</div>";
+      h.total.toFixed(1) + " m³ - R$ " + h.conta.toFixed(2);
 
     div.appendChild(el);
   });
 }
 
-function limparHistorico() {
-  localStorage.removeItem("historico");
-  carregarHistorico();
-}
+// ===== EVENTOS =====
 
+document.getElementById("btnCalcular").addEventListener("click", calcular);
+document.getElementById("btnSalvar").addEventListener("click", salvarMes);
+
+// carregar histórico ao abrir
 carregarHistorico();
+
 </script>
 
 </body>

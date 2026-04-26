@@ -1,13 +1,124 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Teste</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Água Pro</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f2f2f7;
+  padding: 20px;
+}
+
+.box {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  max-width: 400px;
+  margin: auto;
+}
+
+textarea {
+  width: 100%;
+  height: 100px;
+  margin-bottom: 10px;
+}
+
+button {
+  width: 100%;
+  padding: 10px;
+  background: #007aff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+}
+
+.barra {
+  height: 12px;
+  background: #007aff;
+  margin: 3px 0;
+  border-radius: 6px;
+}
+</style>
 </head>
 
 <body>
 
-<button onclick="alert('FUNCIONOU')">Testar</button>
+<div class="box">
+  <h2>💧 Água Pro</h2>
+
+  <textarea id="dados" placeholder="02/04: 1,9"></textarea>
+
+  <button onclick="calcular()">Calcular</button>
+
+  <div id="resultado"></div>
+
+  <div id="grafico"></div>
+</div>
+
+<script>
+
+function extrairNumero(linha) {
+  let m = linha.match(/[\d,.]+$/);
+  return m ? parseFloat(m[0].replace(",", ".")) : NaN;
+}
+
+function calcularConta(t) {
+  if (t <= 10) return 80.84;
+  if (t <= 20) return 80.84 + (t - 10) * 12.8;
+  if (t <= 50) return 80.84 + (1012.8) + (t - 20)31.9;
+  return 80.84 + (1012.8) + (3031.9) + (t - 50)35.14;
+}
+
+function calcular() {
+
+  let texto = document.getElementById("dados").value;
+  let linhas = texto.split("\n");
+
+  let valores = [];
+
+  linhas.forEach(l => {
+    let v = extrairNumero(l);
+    if (!isNaN(v)) valores.push(v);
+  });
+
+  if (valores.length === 0) {
+    document.getElementById("resultado").innerHTML = "⚠️ Insira dados válidos";
+    return;
+  }
+
+  let total = valores.reduce((a,b)=>a+b,0);
+  let media = total / valores.length;
+
+  let proj = media * 30;
+  let conta = calcularConta(proj);
+
+  document.getElementById("resultado").innerHTML =
+    "<b>Consumo:</b> " + total.toFixed(1) + " m³<br>" +
+    "<b>Média:</b> " + media.toFixed(2) + "<br>" +
+    "<b>Projeção:</b> " + proj.toFixed(1) + "<br>" +
+    "<b>Conta:</b> R$ " + conta.toFixed(2);
+
+  desenharGrafico(valores);
+}
+
+function desenharGrafico(valores) {
+  let div = document.getElementById("grafico");
+  div.innerHTML = "";
+
+  let max = Math.max(...valores);
+
+  valores.forEach(v => {
+    let barra = document.createElement("div");
+    barra.className = "barra";
+    barra.style.width = (v/max100) + "%";
+    div.appendChild(barra);
+  });
+}
+
+</script>
 
 </body>
 </html>
